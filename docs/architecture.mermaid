@@ -1,0 +1,64 @@
+graph TD
+    %% Main Components
+    Client["Client Browser"]
+    Django["Django Framework"]
+    Templates["Templates"]
+    Static["Static Files"]
+    DB["Database"]
+    OAuth["OAuth Providers"]
+    
+    %% Django Project Structure
+    Django --> DjangoTemplate["django_template (Project)"]
+    Django --> MainApp["main (App)"]
+    Django --> ThirdParty["Third-Party Apps"]
+    
+    %% Django Template Components
+    DjangoTemplate --> Settings["settings.py"]
+    DjangoTemplate --> URLs["urls.py"]
+    DjangoTemplate --> WSGI["wsgi.py"]
+    DjangoTemplate --> ASGI["asgi.py"]
+    
+    %% Main App Components
+    MainApp --> Models["models.py"]
+    MainApp --> Views["views.py"]
+    MainApp --> AppURLs["urls.py"]
+    MainApp --> Admin["admin.py"]
+    MainApp --> Tests["tests.py"]
+    MainApp --> Templates
+    
+    %% Third-Party Apps
+    ThirdParty --> Allauth["django-allauth"]
+    ThirdParty --> CORS["django-cors-headers"]
+    ThirdParty --> WhiteNoise["whitenoise"]
+    
+    %% Authentication Flow
+    Client --> |"1. Request"| Django
+    Django --> |"2. Render"| Templates
+    Templates --> |"3. Response"| Client
+    Client --> |"4. Auth Request"| Allauth
+    Allauth --> |"5. OAuth Redirect"| OAuth
+    OAuth --> |"6. OAuth Callback"| Allauth
+    Allauth --> |"7. Create/Login User"| Models
+    Models --> |"8. Store/Retrieve"| DB
+    
+    %% Static Files Flow
+    Client --> |"Request Static"| Static
+    Static --> |"Serve via WhiteNoise"| Client
+    
+    %% API Flow
+    Client --> |"API Request"| Views
+    Views --> |"Query/Update"| Models
+    Models --> |"Store/Retrieve"| DB
+    Views --> |"JSON Response"| Client
+    
+    %% CORS Handling
+    CORS --> |"Handle Cross-Origin"| Django
+    
+    %% Styling
+    classDef core fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef app fill:#bbf,stroke:#33f,stroke-width:1px;
+    classDef external fill:#bfb,stroke:#3f3,stroke-width:1px;
+    
+    class Django,DjangoTemplate core;
+    class MainApp,Models,Views,Templates app;
+    class OAuth,DB external;

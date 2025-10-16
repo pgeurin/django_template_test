@@ -1,0 +1,26 @@
+# Django and Core Dependencies
+Django==5.2.6
+python-dotenv==1.0.0
+
+# Database
+psycopg2-binary==2.9.9
+dj-database-url==2.1.0
+
+# Authentication
+django-allauth==0.63.3
+
+# Static Files
+whitenoise==6.6.0
+
+# API & CORS
+django-cors-headers==4.3.1
+
+# HTTP Requests (required by django-allauth)
+requests==2.31.0
+
+# Production Server
+gunicorn==21.2.0
+
+# Development & Testing
+pytest==8.2.0
+pytest-django==4.8.0

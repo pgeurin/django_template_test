@@ -1,0 +1,72 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run tests
+      run: |
+        cd django_app
+        python manage.py test
+        
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to Render using CLI
+      run: |
+        # Install Render CLI
+        curl -s https://raw.githubusercontent.com/render-oss/cli/main/scripts/install.sh | bash
+        
+        # Set up API key
+        export RENDER_API_KEY=${{ secrets.RENDER_API_KEY }}
+        
+        # Deploy using the CLI
+        render deploys create ${{ secrets.RENDER_SERVICE_ID }} --output text
+        
+        # Wait for deployment to start
+        echo "Deployment triggered. Waiting for it to complete..."
+        sleep 30
+        
+        # Check deployment status
+        render services get ${{ secrets.RENDER_SERVICE_ID }} --output text
+        
+    - name: Verify deployment
+      run: |
+        echo "Waiting for deployment to complete..."
+        sleep 60
+        
+    - name: Send deployment notification
+      if: success()
+      run: |
+        echo "Deployment to Render completed successfully!"
+        # Add notification logic here (e.g., Slack, email)
+        
+    - name: Deployment failed
+      if: failure()
+      run: |
+        echo "Deployment to Render failed!"
+        # Add failure notification logic here

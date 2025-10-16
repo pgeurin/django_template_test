@@ -1,0 +1,21 @@
+# OAuth consent screen configuration
+consent_screen:
+  user_support_email: "admin@example.com"
+  application_name: "Django Template"
+  scopes:
+    - "https://www.googleapis.com/auth/userinfo.profile"
+    - "https://www.googleapis.com/auth/userinfo.email"
+    - "https://www.googleapis.com/auth/calendar.readonly"
+  authorized_domains:
+    - "localhost"
+    - "127.0.0.1"
+
+# OAuth credentials configuration
+oauth_credentials:
+  name: "Django Template OAuth"
+  redirect_uris:
+    - "http://localhost:8000/accounts/google/login/callback/"
+    - "http://127.0.0.1:8000/accounts/google/login/callback/"
+  javascript_origins:
+    - "http://localhost:8000"
+    - "http://127.0.0.1:8000"
