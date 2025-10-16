@@ -207,7 +207,7 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_AUTO_SIGNUP = True  # Automatically create user accounts
 SOCIALACCOUNT_ADAPTER = 'allauth.socialaccount.adapter.DefaultSocialAccountAdapter'
 
-# Google OAuth settings - configured via database (SocialApp model)
+# Google OAuth settings - configured via environment variables
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': [
@@ -220,7 +220,10 @@ SOCIALACCOUNT_PROVIDERS = {
             'access_type': 'offline',
         },
         'OAUTH_PKCE_ENABLED': True,
-        # APP configuration removed - using database SocialApp records instead
+        'APP': {
+            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+        }
     }
 }
 
