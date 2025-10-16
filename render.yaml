@@ -1,25 +1,25 @@
 services:
   - type: web
-    name: django-template
+    name: django-template-test
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: cd django_app && gunicorn django_template.wsgi:application
+    startCommand: cd django_app && gunicorn django_template_test.wsgi:application
     envVars:
       - key: DEBUG
         value: False
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS
-        value: "django-template-i17t.onrender.com,.onrender.com"
+        value: "django-template-test.onrender.com,.onrender.com"
       - key: DATABASE_URL
         fromDatabase:
-          name: django-template-db
+          name: django-template-test-db
           property: connectionString
       - key: PYTHON_VERSION
         value: 3.11.0
 
 databases:
-  - name: django-template-db
-    databaseName: django_template
-    user: django_template
+  - name: django-template-test-db
+    databaseName: django_template_test
+    user: django_template_test
     plan: free
