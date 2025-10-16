@@ -2,6 +2,9 @@
 
 This runbook provides step-by-step instructions for deploying a Django application on Render with Google OAuth authentication.
 
+**⚠️ IMPORTANT LESSONS LEARNED:**
+This runbook has been updated based on real deployment experience. The original runbook was missing critical steps that caused 500 errors and deployment failures.
+
 ## Prerequisites
 
 - GitHub repository with Django project
@@ -66,7 +69,34 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 ```
 
-### 1.4. Create Build Script
+### 1.4. Configure Google OAuth in Settings
+
+**CRITICAL:** Configure Google OAuth to use environment variables instead of database:
+
+```python
+# settings.py
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+            'openid',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'offline',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+        'APP': {
+            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+        }
+    }
+}
+```
+
+**⚠️ LESSON LEARNED:** The original configuration used database SocialApp records, which caused 500 errors because the OAuth credentials weren't configured in the database for the new service.
+
+### 1.5. Create Build Script
 
 Create a build.sh file in your project root:
 ```bash
@@ -89,7 +119,7 @@ Make it executable:
 chmod +x build.sh
 ```
 
-### 1.5. Create render.yaml
+### 1.6. Create render.yaml
 
 Create a render.yaml file in your project root:
 ```yaml
@@ -97,7 +127,18 @@ services:
   - type: web
     name: django-template
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install -r requirements.txt
+      cd django_app && python manage.py migrate
+      cd django_app && python manage.py shell -c "
+      from django.contrib.auth import get_user_model;
+      User = get_user_model();
+      if not User.objects.filter(is_superuser=True).exists():
+          User.objects.create_superuser('admin', 'admin@example.com', 'admin123');
+          print('Superuser created')
+      else:
+          print('Superuser exists')
+      "
     startCommand: cd django_app && gunicorn django_template.wsgi:application
     envVars:
       - key: DEBUG
@@ -105,7 +146,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS
-        value: ".onrender.com"
+        value: "django-template.onrender.com,.onrender.com"
       - key: DATABASE_URL
         fromDatabase:
           name: django-template-db
@@ -119,6 +160,12 @@ databases:
     user: django_template
     plan: free
 ```
+
+**⚠️ CRITICAL LESSONS LEARNED:**
+1. **Database Migrations**: Must be run during build, not just at startup
+2. **Superuser Creation**: Must be automated during deployment
+3. **ALLOWED_HOSTS**: Must include the exact Render domain
+4. **Build Command**: Must use multi-line format for complex commands
 
 > **Important**: Make sure gunicorn is included in your requirements.txt file to avoid the "gunicorn: command not found" error. Render uses separate environments for build and runtime, so dependencies must be in requirements.txt to be available at runtime.
 
@@ -185,11 +232,15 @@ git push origin main
 
 ### 3.3. Configure Google OAuth in Render
 
+**⚠️ CRITICAL STEP:** This step is essential to prevent 500 errors on login pages.
+
 1. After services are created, go to your web service in the Render dashboard
 2. Click on "Environment" tab
 3. Add the following environment variables:
    - `GOOGLE_CLIENT_ID`: Your Google OAuth client ID
    - `GOOGLE_CLIENT_SECRET`: Your Google OAuth client secret
+
+**⚠️ LESSON LEARNED:** Without these environment variables, the login pages will return 500 errors because Django-allauth cannot find the Google OAuth credentials.
 
 ### 3.4. Set Up Google OAuth in Django Admin
 
@@ -281,6 +332,33 @@ If needed, upgrade your plan in the Render dashboard to handle more traffic.
   ```
   Remember that Render uses separate environments for build and runtime, so dependencies must be in requirements.txt to be available at runtime.
 
+### 6.2. Critical Issues Discovered During Real Deployment
+
+**🚨 500 Error on Login Pages**
+- **Cause**: Google OAuth credentials not configured in environment variables
+- **Solution**: Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in Render dashboard
+- **Prevention**: Configure Google OAuth to use environment variables in settings.py
+
+**🚨 Database Migrations Not Run**
+- **Cause**: Migrations only run at startup, not during build
+- **Solution**: Add `python manage.py migrate` to buildCommand in render.yaml
+- **Prevention**: Always run migrations during build phase
+
+**🚨 No Superuser Created**
+- **Cause**: No automated superuser creation during deployment
+- **Solution**: Add superuser creation to buildCommand in render.yaml
+- **Prevention**: Automate superuser creation in deployment process
+
+**🚨 ALLOWED_HOSTS Configuration**
+- **Cause**: ALLOWED_HOSTS not configured for exact Render domain
+- **Solution**: Set ALLOWED_HOSTS to include exact domain: `"your-app.onrender.com,.onrender.com"`
+- **Prevention**: Always include exact domain in ALLOWED_HOSTS
+
+**🚨 Build Command Failures**
+- **Cause**: Complex build commands not properly formatted
+- **Solution**: Use multi-line YAML format with `|` for buildCommand
+- **Prevention**: Test build commands locally before deployment
+
 ### 6.2. Render Support
 
 If you encounter issues specific to Render, consult their documentation or contact support:
@@ -301,6 +379,43 @@ If you encounter issues specific to Render, consult their documentation or conta
 - Document the recovery process
 - Test the recovery process periodically
 
+## 7. Complete Deployment Checklist
+
+### Pre-Deployment Checklist
+- [ ] Django settings configured for environment variables
+- [ ] Google OAuth configured to use environment variables (not database)
+- [ ] Database settings support PostgreSQL with dj-database-url
+- [ ] Static files configured with WhiteNoise
+- [ ] render.yaml created with proper buildCommand including migrations and superuser creation
+- [ ] requirements.txt includes gunicorn
+- [ ] ALLOWED_HOSTS includes exact Render domain
+
+### Deployment Checklist
+- [ ] GitHub repository created and code pushed
+- [ ] Render Blueprint created and applied
+- [ ] Google OAuth environment variables set in Render dashboard:
+  - [ ] `GOOGLE_CLIENT_ID`
+  - [ ] `GOOGLE_CLIENT_SECRET`
+- [ ] Google Cloud Console redirect URI updated
+- [ ] Deployment completed successfully (status: Live)
+- [ ] Database migrations run during build
+- [ ] Superuser created during build
+
+### Post-Deployment Verification
+- [ ] Homepage loads correctly
+- [ ] Login page loads without 500 errors
+- [ ] Google OAuth login redirects properly
+- [ ] Admin panel accessible
+- [ ] API endpoints working
+- [ ] All tests pass
+
+### Critical Success Factors
+1. **Environment Variables**: Google OAuth credentials must be set in Render dashboard
+2. **Database Setup**: Migrations must run during build phase
+3. **Superuser Creation**: Must be automated in build process
+4. **Domain Configuration**: ALLOWED_HOSTS must include exact Render domain
+5. **Build Process**: Complex commands must use proper YAML formatting
+
 ---
 
-This runbook provides a comprehensive guide for deploying a Django application with Google OAuth on Render. Adjust the steps as needed for your specific project requirements.
+This runbook provides a comprehensive guide for deploying a Django application with Google OAuth on Render. This version has been updated based on real deployment experience and includes all critical steps that were missing from the original runbook.
